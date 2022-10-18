@@ -34,6 +34,7 @@ const updateUser = (req = request, res = response) => {
   res.json({
     msg: 'put API - controller',
     id,
+    body,
   })
 }
 
