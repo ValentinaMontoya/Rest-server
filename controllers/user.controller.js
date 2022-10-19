@@ -1,8 +1,11 @@
 const { request, response } = require('express')
+const User = require('../models/user')
 
 const getUsers = (req = request, res = response) => {
   // url/api/users/?name?valentina&date=2022-04-12 -> query
+
   const { name, date } = req.query
+
   res.status(200).json({
     msg: 'Get - controller',
     name,
@@ -10,12 +13,16 @@ const getUsers = (req = request, res = response) => {
   })
 }
 
-const createUser = (req = request, res = response) => {
+const createUser = async (req = request, res = response) => {
   // url/api/users/ -> Body: Es el objeto en JSON
-  const data = req.body
+
+  const body = req.body
+  const user = new User(body)
+  await user.save()
+
   res.status(201).json({
     msg: 'post API - controller',
-    data,
+    user,
   })
 }
 
