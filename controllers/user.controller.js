@@ -1,29 +1,35 @@
 const { request, response } = require('express')
+const bcryptjs = require('bcryptjs')
+
 const User = require('../models/user')
 
-const getUsers = (req = request, res = response) => {
+const { validationResult, body } = require('express-validator')
+
+const getUsers = async (req = request, res = response) => {
   // url/api/users/?name?valentina&date=2022-04-12 -> query
 
-  const { name, date } = req.query
+  try {
+    let { from = 0, lot = 5 } = req.query
+    from = from <= 0 || isNaN(from) ? 0 : from - 1
 
-  res.status(200).json({
-    msg: 'Get - controller',
-    name,
-    date,
-  })
-}
+    const query = { status: true }
+    const [users, total] = await Promise.all([
+      User.find({ status: true }).skip(from).limit(lot),
+      User.countDocuments({ status: true }),
+    ])
 
-const createUser = async (req = request, res = response) => {
-  // url/api/users/ -> Body: Es el objeto en JSON
-
-  const body = req.body
-  const user = new User(body)
-  await user.save()
-
-  res.status(201).json({
-    msg: 'post API - controller',
-    user,
-  })
+    res.status(200).json({
+      total,
+      users,
+      from: from + 1,
+      lot: Number(lot),
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({
+      msg: 'Error en el servidor',
+    })
+  }
 }
 
 const getUsersById = (req = request, res = resizeBy) => {
@@ -35,21 +41,74 @@ const getUsersById = (req = request, res = resizeBy) => {
   })
 }
 
-const updateUser = (req = request, res = response) => {
-  const id = req.params.id
-  const body = req.body
-  res.json({
-    msg: 'put API - controller',
-    id,
-    body,
-  })
+const createUser = async (req = request, res = response) => {
+  // url/api/users/ -> Body: Es el objeto en JSON
+  try {
+    const { name, email, password, role } = req.body
+    const user = new User({ name, email, password, role })
+
+    user.password = bcryptjs.hashSync(password, bcryptjs.genSaltSync())
+    await user.save()
+
+    res.status(201).json({
+      user,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({
+      msg: 'Error en el servidor',
+    })
+  }
 }
 
-const deleteUser = (req = request, res = response) => {
-  const id = req.params.id
-  res.json({
-    msg: 'delete API - Controller',
-  })
+const updateUser = async (req = request, res = response) => {
+  try {
+    const id = req.params.id
+    const { password, google, ...data } = req.body
+
+    if (password) {
+      data.password = bcryptjs.hashSync(password, bcryptjs.genSaltSync())
+    }
+
+    const user = await User.findByIdAndUpdate(id, data, { new: true })
+
+    res.json({
+      user,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({
+      msg: 'Error en el servidor',
+    })
+  }
+}
+
+const deleteUser = async (req = request, res = response) => {
+  try {
+    const { id } = req.params
+
+    // Borrar físico de la BD
+
+    /* const deleteUser = await User.findByIdAndDelete(id) */
+
+    // Borrado suave
+
+    const deleteUser = await User.findByIdAndUpdate(
+      id,
+      { status: false },
+      { new: true }
+    )
+
+    res.json({
+      msg: 'delete API - Controller',
+      deleteUser,
+    })
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({
+      msg: 'Error en el servidor',
+    })
+  }
 }
 
 module.exports = {
